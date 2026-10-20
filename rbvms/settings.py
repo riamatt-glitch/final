@@ -46,6 +46,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'vulnmgmt.middleware.CurrentUserMiddleware',
+    'vulnmgmt.middleware.MissingRecordMiddleware',
 ]
 
 ROOT_URLCONF = 'rbvms.urls'

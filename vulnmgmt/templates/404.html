@@ -1,0 +1,11 @@
+{% extends 'vulnmgmt/base.html' %}
+{% block title %}Page not found{% endblock %}
+{% block content %}
+<div class="row justify-content-center"><div class="col-lg-6">
+  <div class="card"><div class="card-body p-4">
+    <h1 class="h4">Page not found</h1>
+    <p class="text-muted mb-3">The page you asked for doesn't exist. If you followed a link from a page that was open for a while, the record may have been deleted or the data reset since then.</p>
+    <a class="btn btn-primary" href="{% url 'dashboard' %}">Go to the dashboard</a>
+  </div></div>
+</div></div>
+{% endblock %}

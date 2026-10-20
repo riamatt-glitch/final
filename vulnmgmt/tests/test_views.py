@@ -56,6 +56,19 @@ def test_detail_pages_render(admin_client, finding):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize('path,list_view', [
+    ('/findings/999999/', 'finding_list'), ('/assets/999999/', 'asset_list'),
+    ('/vulnerabilities/999999/', 'vulnerability_list'), ('/tasks/999999/', 'task_list'),
+])
+def test_stale_record_link_redirects_to_list(admin_client, path, list_view):
+    """A link to a deleted record (e.g. after seed_demo --reset) lands on the current list, not a 404."""
+    response = admin_client.get(path, follow=True)
+    assert response.status_code == 200
+    assert response.redirect_chain[-1][0] == reverse(list_view)
+    assert 'no longer exists' in response.content.decode()
+
+
+@pytest.mark.django_db
 def test_analyst_cannot_manage_assets(analyst_client):
     assert analyst_client.get(reverse('asset_create')).status_code == 403
     assert analyst_client.get(reverse('nvd_import')).status_code == 403
