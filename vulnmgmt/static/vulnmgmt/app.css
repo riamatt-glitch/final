@@ -1,0 +1,26 @@
+:root {
+  --rb-navy: #1f4e79;
+  --rb-critical: #b42318;
+  --rb-high: #e8590c;
+  --rb-medium: #d4a106;
+  --rb-low: #2f855a;
+}
+body { background: #f4f6f9; }
+.app-nav { background: var(--rb-navy); }
+.card { border: 0; box-shadow: 0 1px 3px rgba(16, 24, 40, .08); }
+.card-header { background: #fff; font-weight: 600; }
+.stat-card .value { font-size: 2rem; font-weight: 700; line-height: 1.1; }
+.stat-card .label { color: #667085; font-size: .85rem; text-transform: uppercase; letter-spacing: .03em; }
+.risk-critical { background: var(--rb-critical); color: #fff; }
+.risk-high { background: var(--rb-high); color: #fff; }
+.risk-medium { background: var(--rb-medium); color: #212529; }
+.risk-low { background: var(--rb-low); color: #fff; }
+.border-critical { border-left: 4px solid var(--rb-critical) !important; }
+.score-pill { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 3.2rem; display: inline-block; text-align: center; }
+.table td, .table th { vertical-align: middle; }
+.desc-clip { max-width: 520px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chart-box { position: relative; height: 260px; }
+.login-wrap { min-height: 80vh; display: flex; align-items: center; justify-content: center; }
+.factor-bar { height: 8px; background: #e9ecef; border-radius: 4px; overflow: hidden; }
+.factor-bar span { display: block; height: 100%; background: var(--rb-navy); }
+pre.notes { white-space: pre-wrap; font-family: inherit; margin: 0; }

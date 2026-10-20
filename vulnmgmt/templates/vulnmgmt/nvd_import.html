@@ -1,0 +1,26 @@
+{% extends 'vulnmgmt/base.html' %}
+{% block title %}Import from NVD{% endblock %}
+{% block content %}
+<div class="row justify-content-center"><div class="col-lg-8 col-xl-6">
+  <h1 class="h4 mb-1">Import vulnerabilities from the NVD</h1>
+  <p class="text-muted small">Records are fetched live from the National Vulnerability Database CVE API 2.0, matched to assets using each asset's software keywords, and scored immediately. Without an NVD API key the import is limited to 5 requests per 30 seconds, so large imports take longer.</p>
+  <div class="card"><div class="card-body">
+    <form method="post">{% csrf_token %}
+      {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors|join:' ' }}</div>{% endif %}
+      <div class="row g-3">
+        <div class="col-md-6"><label class="form-label">{{ form.cve_id.label }}</label>{{ form.cve_id }}<div class="form-text">{{ form.cve_id.help_text }}</div></div>
+        <div class="col-md-6"><label class="form-label">{{ form.keyword.label }}</label>{{ form.keyword }}<div class="form-text">{{ form.keyword.help_text }}</div></div>
+        <div class="col-md-6"><label class="form-label">{{ form.days.label }}</label>{{ form.days }}</div>
+        <div class="col-md-6"><label class="form-label">{{ form.max_results.label }}</label>{{ form.max_results }}</div>
+        <div class="col-12 form-check ms-1">{{ form.kev_only }} <label class="form-check-label" for="{{ form.kev_only.id_for_label }}">{{ form.kev_only.label }}</label></div>
+      </div>
+      <button class="btn btn-primary mt-3" onclick="this.disabled=true;this.innerText='Importing…';this.form.submit();">Import</button>
+    </form>
+  </div></div>
+  {% if result %}
+  <div class="card mt-3"><div class="card-header">Imported</div><div class="card-body small">
+    {% for c in result.cve_ids %}<span class="badge text-bg-light border me-1 mb-1">{{ c }}</span>{% empty %}No CVEs matched the query.{% endfor %}
+  </div></div>
+  {% endif %}
+</div></div>
+{% endblock %}

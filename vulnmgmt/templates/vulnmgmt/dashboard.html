@@ -1,0 +1,107 @@
+{% extends 'vulnmgmt/base.html' %}
+{% load rbvms_tags humanize %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <h1 class="h3 mb-0">Vulnerability risk dashboard</h1>
+  {% if user.is_administrator %}
+  <div class="d-flex gap-2">
+    <a class="btn btn-primary" href="{% url 'nvd_import' %}">Import from NVD</a>
+    <form method="post" action="{% url 'rescore_all' %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'dashboard' %}">
+      <button class="btn btn-outline-secondary">Recalculate all scores</button></form>
+  </div>
+  {% endif %}
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-2"><div class="card stat-card h-100"><div class="card-body"><div class="label">Assets</div><div class="value">{{ total_assets|intcomma }}</div></div></div></div>
+  <div class="col-6 col-lg-2"><div class="card stat-card h-100"><div class="card-body"><div class="label">CVEs tracked</div><div class="value">{{ total_vulns|intcomma }}</div></div></div></div>
+  <div class="col-6 col-lg-2"><div class="card stat-card h-100"><div class="card-body"><div class="label">Active findings</div><div class="value">{{ active_findings|intcomma }}</div></div></div></div>
+  <div class="col-6 col-lg-2"><div class="card stat-card h-100 border-critical"><div class="card-body"><div class="label">Critical risk</div><div class="value text-danger">{{ critical_findings|intcomma }}</div></div></div></div>
+  <div class="col-6 col-lg-2"><div class="card stat-card h-100"><div class="card-body"><div class="label">Open tasks</div><div class="value">{{ open_tasks|intcomma }}</div></div></div></div>
+  <div class="col-6 col-lg-2"><div class="card stat-card h-100"><div class="card-body"><div class="label">Overdue tasks</div><div class="value {% if overdue_tasks %}text-danger{% endif %}">{{ overdue_tasks|intcomma }}</div></div></div></div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-4"><div class="card h-100"><div class="card-header">Active findings by risk level</div>
+    <div class="card-body"><div class="chart-box"><canvas id="riskChart"></canvas></div></div></div></div>
+  <div class="col-lg-4"><div class="card h-100"><div class="card-header">Remediation lifecycle</div>
+    <div class="card-body"><div class="chart-box"><canvas id="statusChart"></canvas></div></div></div></div>
+  <div class="col-lg-4"><div class="card h-100"><div class="card-header">Riskiest assets (avg. Smart Priority Score)</div>
+    <div class="card-body"><div class="chart-box"><canvas id="assetChart"></canvas></div></div></div></div>
+</div>
+
+<div class="row g-3">
+  <div class="col-xl-8">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between"><span>Top 10 prioritised vulnerabilities</span>
+        <a href="{% url 'finding_list' %}" class="small">View all →</a></div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light"><tr><th>#</th><th>Score</th><th>Risk</th><th>CVE</th><th>Asset</th><th>CVSS</th><th>KEV</th><th>Status</th></tr></thead>
+          <tbody>
+          {% for f in top_findings %}
+            <tr onclick="location.href='{{ f.get_absolute_url }}'" style="cursor:pointer">
+              <td class="text-muted">{{ forloop.counter }}</td>
+              <td><span class="score-pill">{{ f.priority_score }}</span></td>
+              <td>{% risk_badge f.risk_level %}</td>
+              <td><a href="{{ f.get_absolute_url }}">{{ f.vulnerability.cve_id }}</a></td>
+              <td>{{ f.asset.name }} <span class="text-muted small">({{ f.asset.criticality }})</span></td>
+              <td>{% cvss_badge f.vulnerability.cvss_score %}</td>
+              <td>{% yesno_icon f.vulnerability.publicly_exploited %}</td>
+              <td>{% status_badge f.status %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="8" class="text-center text-muted py-4">No active findings yet. Add assets and import CVEs from the NVD to get started.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-4">
+    <div class="card mb-3">
+      <div class="card-header">My open remediation tasks</div>
+      <ul class="list-group list-group-flush">
+        {% for t in my_tasks %}
+        <li class="list-group-item"><a href="{% url 'task_edit' t.pk %}">{{ t.title }}</a>
+          <div class="small text-muted">Due {{ t.due_date|default:'—' }} {% if t.is_overdue %}<span class="text-danger fw-semibold">· overdue</span>{% endif %}</div></li>
+        {% empty %}
+        <li class="list-group-item text-muted">Nothing assigned to you.</li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-header">Recent activity</div>
+      <ul class="list-group list-group-flush small">
+        {% for log in recent_activity %}
+        <li class="list-group-item"><span class="text-muted">{{ log.timestamp|naturaltime }}</span> · <strong>{{ log.user|default:'system' }}</strong> {{ log.action|lower }} {{ log.object_repr }}</li>
+        {% empty %}<li class="list-group-item text-muted">No activity yet.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  const risk = {{ risk_chart|safe }}, status = {{ status_chart|safe }}, assets = {{ asset_chart|safe }};
+  const riskColors = ['#b42318', '#e8590c', '#d4a106', '#2f855a'];
+  new Chart(document.getElementById('riskChart'), {
+    type: 'doughnut',
+    data: {labels: risk.labels, datasets: [{data: risk.data, backgroundColor: riskColors}]},
+    options: {maintainAspectRatio: false, plugins: {legend: {position: 'bottom'}}}
+  });
+  new Chart(document.getElementById('statusChart'), {
+    type: 'bar',
+    data: {labels: status.labels, datasets: [{label: 'Findings', data: status.data, backgroundColor: '#1f4e79'}]},
+    options: {maintainAspectRatio: false, plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true, ticks: {precision: 0}}}}
+  });
+  new Chart(document.getElementById('assetChart'), {
+    type: 'bar',
+    data: {labels: assets.labels, datasets: [{label: 'Avg. score', data: assets.avg,
+      backgroundColor: assets.avg.map(v => v >= 80 ? riskColors[0] : v >= 60 ? riskColors[1] : v >= 40 ? riskColors[2] : riskColors[3])}]},
+    options: {indexAxis: 'y', maintainAspectRatio: false, plugins: {legend: {display: false}}, scales: {x: {min: 0, max: 100}}}
+  });
+</script>
+{% endblock %}

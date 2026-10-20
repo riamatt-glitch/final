@@ -1,0 +1,56 @@
+{% extends 'vulnmgmt/base.html' %}
+{% load rbvms_tags %}
+{% block title %}Prioritised findings{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <h1 class="h3 mb-0">Prioritised findings <span class="text-muted fs-6">{{ page.paginator.count }} matching</span></h1>
+  {% if user.is_administrator %}<a class="btn btn-outline-primary" href="{% url 'finding_create' %}">Link vulnerability to asset</a>{% endif %}
+</div>
+<form class="card card-body mb-3" method="get">
+  <div class="row g-2 align-items-end">
+    <div class="col-md-3"><label class="form-label small">Search</label><input class="form-control" name="q" value="{{ q }}" placeholder="CVE, asset or text"></div>
+    <div class="col-6 col-md-2"><label class="form-label small">Risk level</label>
+      <select class="form-select" name="risk"><option value="">All</option>{% for r in risk_levels %}<option {% if r == risk %}selected{% endif %}>{{ r }}</option>{% endfor %}</select></div>
+    <div class="col-6 col-md-2"><label class="form-label small">Status</label>
+      <select class="form-select" name="status"><option value="active" {% if status == 'active' %}selected{% endif %}>Active (not closed)</option>
+        <option value="all" {% if status == 'all' %}selected{% endif %}>All</option>
+        {% for s in statuses %}<option {% if s == status %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+    <div class="col-6 col-md-2"><label class="form-label small">Asset</label>
+      <select class="form-select" name="asset"><option value="">All</option>{% for a in assets %}<option value="{{ a.pk }}" {% if a.pk|stringformat:'s' == asset_id %}selected{% endif %}>{{ a.name }}</option>{% endfor %}</select></div>
+    <div class="col-6 col-md-1"><label class="form-label small">Per page</label>
+      <select class="form-select" name="per_page">
+        <option {% if per_page == 50 %}selected{% endif %}>50</option><option {% if per_page == 100 %}selected{% endif %}>100</option>
+        <option {% if per_page == 500 %}selected{% endif %}>500</option><option {% if per_page == 5000 %}selected{% endif %}>5000</option></select></div>
+    <div class="col-md-2"><button class="btn btn-primary w-100">Filter</button></div>
+  </div>
+</form>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover table-sm mb-0">
+      <thead class="table-light"><tr><th>Rank</th><th>Smart score</th><th>Risk</th><th>CVE</th><th>Asset</th><th>Criticality</th><th>Exposure</th><th>CVSS</th><th>Exploit</th><th>KEV</th><th>Patch</th><th>Status</th><th>Detected</th></tr></thead>
+      <tbody>
+      {% for f in rows %}
+        <tr>
+          <td class="text-muted">{{ f.rank }}</td>
+          <td><span class="score-pill">{{ f.score }}</span></td>
+          <td><span class="badge {{ f.risk_class }}">{{ f.risk }}</span></td>
+          <td><a href="{{ f.url }}">{{ f.cve }}</a></td>
+          <td><a class="text-reset" href="{{ f.asset_url }}">{{ f.asset }}</a></td>
+          <td>{{ f.criticality }}</td>
+          <td>{{ f.exposure }}</td>
+          <td>{% if f.cvss is None %}<span class="text-muted">n/a</span>{% else %}<span class="badge {{ f.cvss_class }}">{{ f.cvss }}</span>{% endif %}</td>
+          <td>{% if f.exploit %}<span class="text-danger fw-semibold">Yes</span>{% else %}<span class="text-muted">No</span>{% endif %}</td>
+          <td>{% if f.kev %}<span class="text-danger fw-semibold">Yes</span>{% else %}<span class="text-muted">No</span>{% endif %}</td>
+          <td>{% if f.patch %}Yes{% else %}No{% endif %}</td>
+          <td><span class="badge {{ f.status_class }}">{{ f.status }}</span></td>
+          <td class="text-nowrap">{{ f.detected }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="13" class="text-center text-muted py-4">No findings match these filters.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% include 'vulnmgmt/_pagination.html' %}
+{% endblock %}

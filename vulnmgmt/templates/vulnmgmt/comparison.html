@@ -1,0 +1,31 @@
+{% extends 'vulnmgmt/base.html' %}
+{% load rbvms_tags %}
+{% block title %}Smart vs CVSS-only ranking{% endblock %}
+{% block content %}
+<h1 class="h3 mb-1">Smart Priority Score vs CVSS-only ranking</h1>
+<p class="text-muted">Evaluation view (Section 2.2): the same {{ total }} active findings ranked two ways. A positive shift means organisational context moved the finding <em>up</em> the remediation queue compared with ranking by CVSS alone.</p>
+<form class="d-flex gap-2 align-items-center mb-3" method="get">
+  <label class="small">Compare the top</label><input class="form-control form-control-sm" style="width:90px" type="number" min="1" name="top" value="{{ top_n }}"><button class="btn btn-sm btn-primary">Update</button>
+</form>
+<div class="row g-3 mb-3">
+  <div class="col-md-4"><div class="card stat-card"><div class="card-body"><div class="label">Overlap in top {{ top_n }}</div><div class="value">{{ overlap }} / {{ top_n }}</div></div></div></div>
+  <div class="col-md-4"><div class="card"><div class="card-header">Promoted into the top {{ top_n }} by context</div>
+    <ul class="list-group list-group-flush small">{% for f in promoted %}<li class="list-group-item"><a href="{{ f.get_absolute_url }}">{{ f.vulnerability.cve_id }}</a> on {{ f.asset.name }} · CVSS {{ f.vulnerability.cvss_score }} → score {{ f.priority_score }}</li>{% empty %}<li class="list-group-item text-muted">None</li>{% endfor %}</ul></div></div>
+  <div class="col-md-4"><div class="card"><div class="card-header">Dropped out of the top {{ top_n }}</div>
+    <ul class="list-group list-group-flush small">{% for f in demoted %}<li class="list-group-item"><a href="{{ f.get_absolute_url }}">{{ f.vulnerability.cve_id }}</a> on {{ f.asset.name }} · CVSS {{ f.vulnerability.cvss_score }} → score {{ f.priority_score }}</li>{% empty %}<li class="list-group-item text-muted">None</li>{% endfor %}</ul></div></div>
+</div>
+<div class="card"><div class="table-responsive">
+  <table class="table table-sm table-hover mb-0">
+    <thead class="table-light"><tr><th>Smart rank</th><th>CVSS rank</th><th>Shift</th><th>CVE</th><th>Asset</th><th>Criticality</th><th>Exposure</th><th>KEV</th><th>CVSS</th><th>Smart score</th></tr></thead>
+    <tbody>{% for r in rows %}
+      <tr><td>{{ r.smart_rank }}</td><td>{{ r.cvss_rank }}</td>
+        <td class="{% if r.shift > 0 %}text-success{% elif r.shift < 0 %}text-danger{% else %}text-muted{% endif %} fw-semibold">{% if r.shift > 0 %}▲ {{ r.shift }}{% elif r.shift < 0 %}▼ {{ r.shift|stringformat:'d'|cut:'-' }}{% else %}–{% endif %}</td>
+        <td><a href="{{ r.finding.get_absolute_url }}">{{ r.finding.vulnerability.cve_id }}</a></td>
+        <td>{{ r.finding.asset.name }}</td><td>{{ r.finding.asset.criticality }}</td><td>{{ r.finding.asset.exposure }}</td>
+        <td>{% yesno_icon r.finding.vulnerability.publicly_exploited %}</td>
+        <td>{% cvss_badge r.finding.vulnerability.cvss_score %}</td>
+        <td><span class="score-pill">{{ r.finding.priority_score }}</span> {% risk_badge r.finding.risk_level %}</td></tr>
+    {% empty %}<tr><td colspan="10" class="text-center text-muted py-4">No active findings to compare.</td></tr>{% endfor %}</tbody>
+  </table>
+</div></div>
+{% endblock %}

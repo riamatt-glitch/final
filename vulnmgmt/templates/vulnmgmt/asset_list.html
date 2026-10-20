@@ -1,0 +1,28 @@
+{% extends 'vulnmgmt/base.html' %}
+{% load rbvms_tags %}
+{% block title %}Assets{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Asset inventory</h1>
+  {% if user.is_administrator %}<a class="btn btn-primary" href="{% url 'asset_create' %}">Add asset</a>{% endif %}
+</div>
+<div class="card"><div class="table-responsive">
+  <table class="table table-hover mb-0">
+    <thead class="table-light"><tr><th>Name</th><th>Type</th><th>Criticality</th><th>Exposure</th><th>Owner</th><th>Active findings</th><th>Critical</th><th>Avg. score</th></tr></thead>
+    <tbody>
+    {% for a in assets %}
+      <tr>
+        <td><a href="{{ a.get_absolute_url }}">{{ a.name }}</a></td>
+        <td>{{ a.asset_type }}</td>
+        <td>{% risk_badge a.criticality %}</td>
+        <td>{{ a.get_exposure_display }}</td>
+        <td>{{ a.owner }}</td>
+        <td>{{ a.active }}</td>
+        <td>{% if a.critical %}<span class="text-danger fw-semibold">{{ a.critical }}</span>{% else %}0{% endif %}</td>
+        <td>{{ a.avg_score|floatformat:1|default:'—' }}</td>
+      </tr>
+    {% empty %}<tr><td colspan="8" class="text-center text-muted py-4">No assets yet.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endblock %}

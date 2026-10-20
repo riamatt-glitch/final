@@ -1,0 +1,19 @@
+{% extends 'vulnmgmt/base.html' %}
+{% block title %}Audit log{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <h1 class="h3 mb-0">Audit log</h1>
+  <form method="get" class="d-flex gap-2"><select class="form-select" name="action" onchange="this.form.submit()">
+    <option value="">All actions</option>{% for a in actions %}<option {% if a == action %}selected{% endif %}>{{ a }}</option>{% endfor %}</select></form>
+</div>
+<div class="card"><div class="table-responsive">
+  <table class="table table-sm mb-0">
+    <thead class="table-light"><tr><th>Time</th><th>User</th><th>Action</th><th>Object</th><th>Details</th></tr></thead>
+    <tbody>{% for log in page %}
+      <tr><td class="text-nowrap">{{ log.timestamp|date:'Y-m-d H:i:s' }}</td><td>{{ log.user|default:'system' }}</td>
+        <td><code>{{ log.action }}</code></td><td>{{ log.object_type }} {{ log.object_repr }}</td><td class="small">{{ log.details }}</td></tr>
+    {% empty %}<tr><td colspan="5" class="text-center text-muted py-4">No entries.</td></tr>{% endfor %}</tbody>
+  </table>
+</div></div>
+{% with querystring='action='|add:action %}{% include 'vulnmgmt/_pagination.html' %}{% endwith %}
+{% endblock %}

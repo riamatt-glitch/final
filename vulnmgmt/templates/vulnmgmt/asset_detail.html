@@ -1,0 +1,37 @@
+{% extends 'vulnmgmt/base.html' %}
+{% load rbvms_tags %}
+{% block title %}{{ asset }}{% endblock %}
+{% block content %}
+<nav class="small mb-2"><a href="{% url 'asset_list' %}">← Assets</a></nav>
+<div class="d-flex flex-wrap justify-content-between align-items-start mb-3 gap-2">
+  <div><h1 class="h3 mb-1">{{ asset.name }}</h1>
+    <div>{% risk_badge asset.criticality %} <span class="text-muted">criticality · {{ asset.asset_type }} · {{ asset.get_exposure_display }}</span></div></div>
+  {% if user.is_administrator %}
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary" href="{% url 'finding_create' %}?asset={{ asset.pk }}">Link vulnerability</a>
+    <a class="btn btn-primary" href="{% url 'asset_edit' asset.pk %}">Edit</a>
+    <a class="btn btn-outline-danger" href="{% url 'asset_delete' asset.pk %}">Delete</a>
+  </div>
+  {% endif %}
+</div>
+<div class="card mb-3"><div class="card-body small row">
+  <div class="col-md-4"><strong>IP address:</strong> {{ asset.ip_address|default:'—' }}</div>
+  <div class="col-md-4"><strong>Owner:</strong> {{ asset.owner|default:'—' }}</div>
+  <div class="col-md-4"><strong>Software keywords:</strong> {{ asset.software_keywords|default:'— (no automatic CVE matching)' }}</div>
+  {% if asset.description %}<div class="col-12 mt-2">{{ asset.description }}</div>{% endif %}
+</div></div>
+<div class="card">
+  <div class="card-header">Findings on this asset ({{ findings|length }})</div>
+  <div class="table-responsive"><table class="table table-hover mb-0">
+    <thead class="table-light"><tr><th>Score</th><th>Risk</th><th>CVE</th><th>CVSS</th><th>KEV</th><th>Status</th><th>Detected</th></tr></thead>
+    <tbody>
+    {% for f in findings %}
+      <tr><td><span class="score-pill">{{ f.priority_score }}</span></td><td>{% risk_badge f.risk_level %}</td>
+        <td><a href="{{ f.get_absolute_url }}">{{ f.vulnerability.cve_id }}</a></td>
+        <td>{% cvss_badge f.vulnerability.cvss_score %}</td><td>{% yesno_icon f.vulnerability.publicly_exploited %}</td>
+        <td>{% status_badge f.status %}</td><td>{{ f.detected_date }}</td></tr>
+    {% empty %}<tr><td colspan="7" class="text-center text-muted py-4">No vulnerabilities recorded against this asset.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

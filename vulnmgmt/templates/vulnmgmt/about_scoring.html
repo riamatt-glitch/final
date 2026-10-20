@@ -1,0 +1,29 @@
+{% extends 'vulnmgmt/base.html' %}
+{% load rbvms_tags %}
+{% block title %}How the score works{% endblock %}
+{% block content %}
+<div class="row justify-content-center"><div class="col-xl-9">
+<h1 class="h3">How the Smart Priority Score is calculated</h1>
+<p>CVSS measures how severe a vulnerability is in general. The Smart Priority Score measures how urgent it is <em>for this organisation</em>.
+It treats CVSS as one input among several. Each factor is scaled to a value between 0 and 1 and multiplied by its weight. The weights add up to 100, so the score runs from 0 to 100.</p>
+<div class="row g-3">
+  <div class="col-md-6"><div class="card"><div class="card-header">Weights</div>
+    <table class="table table-sm mb-0">{% for name, w in weights.items %}<tr><td>{{ name }}</td><td class="text-end">{{ w }}</td></tr>{% endfor %}</table></div></div>
+  <div class="col-md-6"><div class="card"><div class="card-header">Factor values</div><div class="card-body small">
+    <p class="mb-1"><strong>CVSS</strong>: base score ÷ 10</p>
+    <p class="mb-1"><strong>Asset criticality</strong>: {% for k, v in criticality.items %}{{ k }} {{ v }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+    <p class="mb-1"><strong>Exposure</strong>: {% for k, v in exposure.items %}{{ k }} {{ v }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+    <p class="mb-1"><strong>Exploit available / Known exploited (KEV)</strong>: 1 if yes, 0 if no</p>
+    <p class="mb-1"><strong>Affected systems</strong>: active assets with this CVE ÷ 5, capped at 1</p>
+    <p class="mb-1"><strong>Patch unavailable</strong>: 1 if no patch exists (compensating controls are needed), 0 otherwise</p>
+    <p class="mb-0"><strong>Remediation pending</strong>: {% for k, v in remediation.items %}{{ k }} {{ v }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+  </div></div></div>
+  <div class="col-md-6"><div class="card"><div class="card-header">Risk levels</div>
+    <table class="table table-sm mb-0">{% for t, level in thresholds %}<tr><td>{% risk_badge level %}</td><td>score ≥ {{ t }}</td></tr>{% endfor %}</table></div></div>
+  <div class="col-md-6"><div class="card"><div class="card-header">Automatic remediation tasks</div><div class="card-body small">
+    Medium, High and Critical findings get an <strong>Open</strong> remediation task automatically. It is due
+    {% for k, v in sla.items %}{{ v }} days after detection for {{ k }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+    Every calculation is recorded in the audit log.</div></div></div>
+</div>
+</div></div>
+{% endblock %}

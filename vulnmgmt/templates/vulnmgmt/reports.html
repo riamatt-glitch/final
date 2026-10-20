@@ -1,0 +1,42 @@
+{% extends 'vulnmgmt/base.html' %}
+{% load rbvms_tags %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <h1 class="h3 mb-0">Vulnerability status &amp; remediation progress</h1>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary" href="{% url 'export_findings_csv' %}">Export findings CSV</a>
+    <button class="btn btn-outline-secondary" onclick="window.print()">Print</button>
+  </div>
+</div>
+<div class="row g-3 mb-3">
+  <div class="col-md-3"><div class="card stat-card"><div class="card-body"><div class="label">Findings (all time)</div><div class="value">{{ total_findings }}</div></div></div></div>
+  <div class="col-md-3"><div class="card stat-card"><div class="card-body"><div class="label">Remediation tasks</div><div class="value">{{ total_tasks }}</div></div></div></div>
+  <div class="col-md-3"><div class="card stat-card"><div class="card-body"><div class="label">Tasks completed</div><div class="value">{{ completed_tasks }}</div></div></div></div>
+  <div class="col-md-3"><div class="card stat-card"><div class="card-body"><div class="label">Completion rate</div><div class="value">{{ completion_rate }}%</div>
+    <div class="progress mt-2" style="height:6px"><div class="progress-bar" style="width: {{ completion_rate }}%"></div></div></div></div></div>
+</div>
+<div class="card mb-3"><div class="card-header">Findings by risk level and lifecycle status</div>
+  <div class="table-responsive"><table class="table table-sm mb-0 text-center">
+    <thead class="table-light"><tr><th class="text-start">Risk</th>{% for s in statuses %}<th>{{ s }}</th>{% endfor %}<th>Total</th></tr></thead>
+    <tbody>{% for row in risk_status %}
+      <tr><td class="text-start">{% risk_badge row.level %}</td>{% for c in row.cells %}<td>{{ c }}</td>{% endfor %}<th>{{ row.total }}</th></tr>
+    {% endfor %}</tbody>
+  </table></div></div>
+<div class="row g-3">
+  <div class="col-lg-7"><div class="card"><div class="card-header">Active risk by asset</div>
+    <div class="table-responsive"><table class="table table-sm mb-0">
+      <thead class="table-light"><tr><th>Asset</th><th>Criticality</th><th>Active</th><th>Critical</th><th>High</th><th>Avg. score</th></tr></thead>
+      <tbody>{% for a in by_asset %}
+        <tr><td>{{ a.asset__name }}</td><td>{{ a.asset__criticality }}</td><td>{{ a.total }}</td><td>{{ a.critical }}</td><td>{{ a.high }}</td><td>{{ a.avg|floatformat:1 }}</td></tr>
+      {% empty %}<tr><td colspan="6" class="text-muted text-center">No active findings.</td></tr>{% endfor %}</tbody>
+    </table></div></div></div>
+  <div class="col-lg-5"><div class="card"><div class="card-header">Remediation workload by assignee</div>
+    <div class="table-responsive"><table class="table table-sm mb-0">
+      <thead class="table-light"><tr><th>Assignee</th><th>Tasks</th><th>Completed</th><th>Overdue</th></tr></thead>
+      <tbody>{% for r in by_assignee %}
+        <tr><td>{{ r.assigned_to__username|default:'(unassigned)' }}</td><td>{{ r.total }}</td><td>{{ r.done }}</td><td class="{% if r.overdue %}text-danger fw-semibold{% endif %}">{{ r.overdue }}</td></tr>
+      {% empty %}<tr><td colspan="4" class="text-muted text-center">No tasks.</td></tr>{% endfor %}</tbody>
+    </table></div></div></div>
+</div>
+{% endblock %}

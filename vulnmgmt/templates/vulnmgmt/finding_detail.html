@@ -1,0 +1,102 @@
+{% extends 'vulnmgmt/base.html' %}
+{% load rbvms_tags %}
+{% block title %}{{ finding }}{% endblock %}
+{% block content %}
+<nav class="small mb-2"><a href="{% url 'finding_list' %}">← Prioritised findings</a></nav>
+<div class="d-flex flex-wrap justify-content-between align-items-start mb-3 gap-2">
+  <div>
+    <h1 class="h3 mb-1">{{ finding.vulnerability.cve_id }} on {{ finding.asset.name }}</h1>
+    <div>{% risk_badge finding.risk_level %} {% status_badge finding.status %}
+      <span class="text-muted small ms-2">Detected {{ finding.detected_date }} · last scored {{ finding.scored_at|default:'never' }}</span></div>
+  </div>
+  {% if user.is_administrator %}
+  <div class="d-flex gap-2">
+    <form method="post" action="{% url 'finding_rescore' finding.pk %}">{% csrf_token %}<button class="btn btn-outline-secondary">Recalculate score</button></form>
+    {% if finding.is_active %}<a class="btn btn-primary" href="{% url 'task_create' finding.pk %}">New remediation task</a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="card mb-3">
+      <div class="card-header">Smart Priority Score</div>
+      <div class="card-body">
+        <div class="d-flex align-items-baseline gap-2 mb-3">
+          <span class="display-5 fw-bold">{{ finding.priority_score }}</span><span class="text-muted">/ 100</span>
+          <span class="ms-auto">CVSS alone: {% cvss_badge finding.vulnerability.cvss_score %}</span>
+        </div>
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Factor</th><th>Value</th><th style="width:35%"></th><th class="text-end">Points</th></tr></thead>
+          <tbody>
+          {% for f in factors %}
+            <tr><td>{{ f.name }}</td><td>{{ f.value }}</td>
+              <td><div class="factor-bar"><span style="width: {{ f.pct }}%;"></span></div></td>
+              <td class="text-end">{{ f.points }} <span class="text-muted small">/ {{ f.weight }}</span></td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        <p class="small text-muted mt-2 mb-0"><a href="{% url 'about_scoring' %}">How the score is calculated</a></p>
+      </div>
+    </div>
+
+    {% if user.is_administrator and transition_form %}
+    <div class="card mb-3">
+      <div class="card-header">Change lifecycle status</div>
+      <div class="card-body">
+        <form method="post" action="{% url 'finding_transition' finding.pk %}">{% csrf_token %}
+          <div class="mb-2">{{ transition_form.status }}</div>
+          <div class="mb-2">{{ transition_form.note }}<div class="form-text">Optional note, e.g. reason for accepting the risk.</div></div>
+          <button class="btn btn-primary">Update status</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-7">
+    <div class="card mb-3">
+      <div class="card-header">Vulnerability</div>
+      <div class="card-body">
+        <p>{{ finding.vulnerability.description|default:'No description.' }}</p>
+        <div class="row small">
+          <div class="col-sm-6"><strong>CVSS:</strong> {{ finding.vulnerability.cvss_score|default:'n/a' }} {% if finding.vulnerability.cvss_version %}(v{{ finding.vulnerability.cvss_version }}){% endif %}</div>
+          <div class="col-sm-6"><strong>Severity:</strong> {{ finding.vulnerability.severity|default:'—' }}</div>
+          <div class="col-sm-6"><strong>Exploit available:</strong> {% yesno_icon finding.vulnerability.exploit_available %}</div>
+          <div class="col-sm-6"><strong>Known exploited (KEV):</strong> {% yesno_icon finding.vulnerability.publicly_exploited %}</div>
+          <div class="col-sm-6"><strong>Patch available:</strong> {{ finding.vulnerability.patch_available|yesno:'Yes,No' }}</div>
+          <div class="col-sm-6"><a href="{{ finding.vulnerability.get_absolute_url }}">Record</a> · <a href="{{ finding.vulnerability.nvd_url }}" target="_blank" rel="noopener">NVD ↗</a></div>
+        </div>
+      </div>
+    </div>
+    <div class="card mb-3">
+      <div class="card-header">Asset</div>
+      <div class="card-body small">
+        <a class="fw-semibold" href="{{ finding.asset.get_absolute_url }}">{{ finding.asset.name }}</a> · {{ finding.asset.asset_type }} ·
+        criticality <strong>{{ finding.asset.criticality }}</strong> · exposure <strong>{{ finding.asset.get_exposure_display }}</strong>
+        {% if finding.asset.owner %} · owner {{ finding.asset.owner }}{% endif %}
+      </div>
+    </div>
+    <div class="card mb-3">
+      <div class="card-header">Remediation tasks</div>
+      <ul class="list-group list-group-flush">
+        {% for t in tasks %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div><a href="{% url 'task_edit' t.pk %}">{{ t.title }}</a>
+            <div class="small text-muted">Assigned to {{ t.assigned_to|default:'nobody' }} · due {{ t.due_date|default:'—' }}{% if t.is_overdue %} <span class="text-danger">overdue</span>{% endif %}</div></div>
+          {% status_badge t.status %}
+        </li>
+        {% empty %}<li class="list-group-item text-muted">No remediation tasks.</li>{% endfor %}
+      </ul>
+    </div>
+    {% if finding.notes %}<div class="card mb-3"><div class="card-header">Notes</div><div class="card-body small"><pre class="notes">{{ finding.notes }}</pre></div></div>{% endif %}
+    <div class="card">
+      <div class="card-header">History</div>
+      <ul class="list-group list-group-flush small">
+        {% for log in history %}<li class="list-group-item"><span class="text-muted">{{ log.timestamp|date:'Y-m-d H:i' }}</span> · {{ log.user|default:'system' }} · {{ log.action }} {{ log.details }}</li>
+        {% empty %}<li class="list-group-item text-muted">No history.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}
