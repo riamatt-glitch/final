@@ -133,6 +133,8 @@ def test_audit_log_records_updates(admin_client, finance_server, admin_user):
         'software_keywords': finance_server.software_keywords})
     log = AuditLog.objects.get(action='UPDATE', object_type='Asset')
     assert 'criticality: Critical -> High' in log.details and log.user == admin_user
+    # Regression (found in black-box test TC-11): untouched empty optional fields are not reported as changes.
+    assert 'ip_address' not in log.details and 'owner' not in log.details
 
 
 @pytest.mark.django_db

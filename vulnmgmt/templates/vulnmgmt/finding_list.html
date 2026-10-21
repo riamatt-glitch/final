@@ -29,25 +29,9 @@
     <table class="table table-hover table-sm mb-0">
       <thead class="table-light"><tr><th>Rank</th><th>Smart score</th><th>Risk</th><th>CVE</th><th>Asset</th><th>Criticality</th><th>Exposure</th><th>CVSS</th><th>Exploit</th><th>KEV</th><th>Patch</th><th>Status</th><th>Detected</th></tr></thead>
       <tbody>
-      {% for f in rows %}
-        <tr>
-          <td class="text-muted">{{ f.rank }}</td>
-          <td><span class="score-pill">{{ f.score }}</span></td>
-          <td><span class="badge {{ f.risk_class }}">{{ f.risk }}</span></td>
-          <td><a href="{{ f.url }}">{{ f.cve }}</a></td>
-          <td><a class="text-reset" href="{{ f.asset_url }}">{{ f.asset }}</a></td>
-          <td>{{ f.criticality }}</td>
-          <td>{{ f.exposure }}</td>
-          <td>{% if f.cvss is None %}<span class="text-muted">n/a</span>{% else %}<span class="badge {{ f.cvss_class }}">{{ f.cvss }}</span>{% endif %}</td>
-          <td>{% if f.exploit %}<span class="text-danger fw-semibold">Yes</span>{% else %}<span class="text-muted">No</span>{% endif %}</td>
-          <td>{% if f.kev %}<span class="text-danger fw-semibold">Yes</span>{% else %}<span class="text-muted">No</span>{% endif %}</td>
-          <td>{% if f.patch %}Yes{% else %}No{% endif %}</td>
-          <td><span class="badge {{ f.status_class }}">{{ f.status }}</span></td>
-          <td class="text-nowrap">{{ f.detected }}</td>
-        </tr>
-      {% empty %}
+      {% if rows_html %}{{ rows_html }}{% else %}
         <tr><td colspan="13" class="text-center text-muted py-4">No findings match these filters.</td></tr>
-      {% endfor %}
+      {% endif %}
       </tbody>
     </table>
   </div>

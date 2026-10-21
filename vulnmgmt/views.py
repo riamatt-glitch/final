@@ -11,6 +11,9 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.formats import date_format
+from django.utils.html import escape
+from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_POST
 
 from .forms import (AssetForm, FindingForm, NVDImportForm, TaskForm, TaskStatusForm, TransitionForm,
@@ -80,25 +83,32 @@ FINDING_ROW_FIELDS = (
 )
 
 
-def _finding_rows(page):
-    """Flatten a page of findings into plain dicts so the list of up to 5,000 rows renders quickly (NFR 1)."""
+def _finding_rows_html(page):
+    """
+    Render a page of findings as table rows in plain Python. Up to 5,000 rows must render in under 5 seconds
+    (NFR 1); the template engine took about 2.3 s for that alone, so the rows are built here instead.
+    """
     finding_url = reverse('finding_detail', args=[0])[:-2]
     asset_url = reverse('asset_detail', args=[0])[:-2]
+    yes, no = '<span class="text-danger fw-semibold">Yes</span>', '<span class="text-muted">No</span>'
     rows = []
     for rank, f in enumerate(page.object_list, start=page.start_index()):
         cvss = f['vulnerability__cvss_score']
-        rows.append({
-            'rank': rank, 'score': f['priority_score'], 'risk': f['risk_level'],
-            'risk_class': RISK_CLASSES.get(f['risk_level'], ''),
-            'status': f['status'], 'status_class': STATUS_CLASSES.get(f['status'], ''),
-            'url': f'{finding_url}{f["pk"]}/', 'asset_url': f'{asset_url}{f["asset_id"]}/',
-            'cve': f['vulnerability__cve_id'], 'asset': f['asset__name'],
-            'criticality': f['asset__criticality'], 'exposure': f['asset__exposure'],
-            'cvss': cvss, 'cvss_class': RISK_CLASSES[cvss_level(cvss)] if cvss is not None else '',
-            'exploit': f['vulnerability__exploit_available'], 'kev': f['vulnerability__publicly_exploited'],
-            'patch': f['vulnerability__patch_available'], 'detected': f['detected_date'],
-        })
-    return rows
+        cvss_cell = ('<span class="text-muted">n/a</span>' if cvss is None
+                     else f'<span class="badge {RISK_CLASSES[cvss_level(cvss)]}">{cvss}</span>')
+        rows.append(
+            f'<tr><td class="text-muted">{rank}</td>'
+            f'<td><span class="score-pill">{f["priority_score"]}</span></td>'
+            f'<td><span class="badge {RISK_CLASSES.get(f["risk_level"], "")}">{escape(f["risk_level"])}</span></td>'
+            f'<td><a href="{finding_url}{f["pk"]}/">{escape(f["vulnerability__cve_id"])}</a></td>'
+            f'<td><a class="text-reset" href="{asset_url}{f["asset_id"]}/">{escape(f["asset__name"])}</a></td>'
+            f'<td>{escape(f["asset__criticality"])}</td><td>{escape(f["asset__exposure"])}</td><td>{cvss_cell}</td>'
+            f'<td>{yes if f["vulnerability__exploit_available"] else no}</td>'
+            f'<td>{yes if f["vulnerability__publicly_exploited"] else no}</td>'
+            f'<td>{"Yes" if f["vulnerability__patch_available"] else "No"}</td>'
+            f'<td><span class="badge {STATUS_CLASSES.get(f["status"], "")}">{escape(f["status"])}</span></td>'
+            f'<td class="text-nowrap">{date_format(f["detected_date"])}</td></tr>')
+    return mark_safe(''.join(rows))
 
 
 @login_required
@@ -129,7 +139,7 @@ def finding_list(request):
     params = request.GET.copy()
     params.pop('page', None)
     return render(request, 'vulnmgmt/finding_list.html', {
-        'page': page, 'rows': _finding_rows(page), 'q': q, 'risk': risk, 'status': status, 'asset_id': asset_id,
+        'page': page, 'rows_html': _finding_rows_html(page), 'q': q, 'risk': risk, 'status': status, 'asset_id': asset_id,
         'per_page': per_page, 'querystring': params.urlencode(),
         'risk_levels': RISK_ORDER, 'statuses': AssetVulnerability.Status.values,
         'assets': Asset.objects.only('id', 'name'),

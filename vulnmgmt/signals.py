@@ -17,8 +17,10 @@ def _changes(instance):
     old = getattr(instance, '_original', None)
     if not old:
         return {}
+    # An empty optional form field arrives as '' but is stored as NULL, so treat the two as the same value.
+    same = lambda a, b: a == b or (a in (None, '') and b in (None, ''))  # noqa: E731
     return {name: (old[name], getattr(instance, name)) for name in old
-            if old[name] != getattr(instance, name)}
+            if not same(old[name], getattr(instance, name))}
 
 
 @receiver(pre_save)
