@@ -70,7 +70,8 @@ def test_stale_record_link_redirects_to_list(admin_client, path, list_view):
 
 @pytest.mark.django_db
 def test_analyst_cannot_manage_assets(analyst_client):
-    assert analyst_client.get(reverse('asset_create')).status_code == 403
+    response = analyst_client.get(reverse('asset_create'))
+    assert response.status_code == 403 and 'Access denied' in response.content.decode()
     assert analyst_client.get(reverse('nvd_import')).status_code == 403
     assert analyst_client.get(reverse('audit_log')).status_code == 403
 

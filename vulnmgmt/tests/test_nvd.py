@@ -1,4 +1,5 @@
 import pytest
+import requests
 
 from vulnmgmt.models import AssetVulnerability, Vulnerability
 from vulnmgmt.nvd import NVDClient, NVDError, parse_cve
@@ -37,12 +38,21 @@ class FakeResponse:
 
 
 class FakeSession:
-    def __init__(self, pages, status=200):
+    def __init__(self, pages, status=200, failures=()):
         self.pages, self.status, self.calls = pages, status, []
+        self.failures = list(failures)  # exceptions or status codes returned before the real pages
+
+        self.served = 0
 
     def get(self, url, params=None, headers=None, timeout=None):
         self.calls.append(dict(params))
-        return FakeResponse(self.pages[len(self.calls) - 1], self.status)
+        if self.failures:
+            failure = self.failures.pop(0)
+            if isinstance(failure, Exception):
+                raise failure
+            return FakeResponse({}, failure)
+        self.served += 1
+        return FakeResponse(self.pages[self.served - 1], self.status)
 
 
 def test_parse_cve_extracts_fields():
@@ -70,6 +80,26 @@ def test_client_paginates_and_honours_max_results():
     assert len(ids) == 4
     assert [c['startIndex'] for c in session.calls] == [0, 2]
     assert session.calls[0]['keywordSearch'] == 'log4j'
+
+
+def _fast_client(session):
+    client = NVDClient(api_key='k', base_url='http://nvd.test', session=session, backoff=0)
+    client.delay = 0
+    return client
+
+
+def test_client_retries_slow_or_unavailable_nvd():
+    page = {'totalResults': 1, 'vulnerabilities': [{'cve': NVD_CVE}]}
+    session = FakeSession([page], failures=[requests.Timeout('slow'), 503])
+    records = list(_fast_client(session).search(cve_id='CVE-2021-44228'))
+    assert [r['cve_id'] for r in records] == ['CVE-2021-44228']
+    assert len(session.calls) == 3
+
+
+def test_client_gives_up_after_retries():
+    session = FakeSession([], failures=[requests.Timeout('slow')] * 3)
+    with pytest.raises(NVDError, match='after 3 attempts'):
+        list(_fast_client(session).search(cve_id='CVE-2021-44228'))
 
 
 def test_client_reports_rate_limit():

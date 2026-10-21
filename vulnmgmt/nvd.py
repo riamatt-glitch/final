@@ -23,30 +23,46 @@ class NVDError(Exception):
 
 
 class NVDClient:
-    def __init__(self, api_key=None, base_url=None, session=None, timeout=30):
+    # The NVD API is often slow (responses of over a minute are common) and briefly unavailable,
+    # so each request waits up to `timeout` seconds and transient failures are retried with backoff.
+    RETRY_STATUSES = {500, 502, 503, 504}
+
+    def __init__(self, api_key=None, base_url=None, session=None, timeout=120, retries=3, backoff=10):
         self.api_key = api_key if api_key is not None else settings.NVD_API_KEY
         self.base_url = base_url or settings.NVD_API_URL
         self.session = session or requests.Session()
         self.timeout = timeout
+        self.retries = retries
+        self.backoff = backoff
         self.delay = 0.6 if self.api_key else 6.0
         self._last_request = 0.0
 
     def _get(self, params):
-        wait = self.delay - (time.monotonic() - self._last_request)
-        if self._last_request and wait > 0:
-            time.sleep(wait)
         headers = {'apiKey': self.api_key} if self.api_key else {}
-        try:
-            response = self.session.get(self.base_url, params=params, headers=headers, timeout=self.timeout)
-        except requests.RequestException as exc:
-            raise NVDError(f'Could not reach the NVD API: {exc}') from exc
-        finally:
-            self._last_request = time.monotonic()
-        if response.status_code in (403, 429):
-            raise NVDError('NVD API rate limit reached. Wait 30 seconds or configure NVD_API_KEY.')
-        if response.status_code != 200:
-            raise NVDError(f'NVD API returned HTTP {response.status_code}: {response.text[:200]}')
-        return response.json()
+        for attempt in range(1, self.retries + 1):
+            wait = self.delay - (time.monotonic() - self._last_request)
+            if self._last_request and wait > 0:
+                time.sleep(wait)
+            try:
+                response = self.session.get(self.base_url, params=params, headers=headers, timeout=self.timeout)
+            except (requests.Timeout, requests.ConnectionError) as exc:
+                problem = f'Could not reach the NVD API ({exc.__class__.__name__})'
+            except requests.RequestException as exc:
+                raise NVDError(f'Could not reach the NVD API: {exc}') from exc
+            else:
+                if response.status_code == 200:
+                    return response.json()
+                if response.status_code in (403, 429):
+                    raise NVDError('NVD API rate limit reached. Wait 30 seconds or configure NVD_API_KEY.')
+                if response.status_code not in self.RETRY_STATUSES:
+                    raise NVDError(f'NVD API returned HTTP {response.status_code}: {response.text[:200]}')
+                problem = f'NVD API returned HTTP {response.status_code}'
+            finally:
+                self._last_request = time.monotonic()
+            if attempt < self.retries:
+                time.sleep(self.backoff * attempt)
+        raise NVDError(f'{problem} after {self.retries} attempts. The NVD service may be slow or down; '
+                       f'try again in a few minutes.')
 
     def search(self, keyword=None, cve_id=None, days=None, max_results=100, kev_only=False):
         """Yield parsed CVE records matching the given criteria."""
