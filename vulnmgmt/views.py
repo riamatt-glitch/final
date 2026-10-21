@@ -26,6 +26,11 @@ RISK_ORDER = ['Critical', 'High', 'Medium', 'Low']
 ACTIVE_STATUSES = ['Open', 'Acknowledged', 'In Remediation']
 
 
+def factor_label(name):
+    """'publicly_exploited' -> 'Publicly exploited'; acronyms stay upper case."""
+    return 'CVSS' if name == 'cvss' else name.replace('_', ' ').capitalize()
+
+
 def _active_findings():
     return AssetVulnerability.objects.filter(status__in=ACTIVE_STATUSES)
 
@@ -136,7 +141,7 @@ def finding_detail(request, pk):
     finding = get_object_or_404(AssetVulnerability.objects.select_related('asset', 'vulnerability'), pk=pk)
     breakdown = breakdown_for(finding)
     weights = get_weights()
-    factors = [{'name': name.replace('_', ' ').capitalize(), 'value': round(value, 2), 'pct': round(value * 100),
+    factors = [{'name': factor_label(name), 'value': round(value, 2), 'pct': round(value * 100),
                 'weight': weights[name], 'points': breakdown.contributions[name]}
                for name, value in breakdown.factors.items()]
     return render(request, 'vulnmgmt/finding_detail.html', {
@@ -462,7 +467,7 @@ def about_scoring(request):
     weights = get_weights()
     from .scoring import CRITICALITY_FACTOR, EXPOSURE_FACTOR, REMEDIATION_FACTOR, REMEDIATION_SLA_DAYS, RISK_THRESHOLDS
     return render(request, 'vulnmgmt/about_scoring.html', {
-        'weights': {k.replace('_', ' ').capitalize(): v for k, v in weights.items()}, 'criticality': CRITICALITY_FACTOR, 'exposure': EXPOSURE_FACTOR,
+        'weights': {factor_label(k): v for k, v in weights.items()}, 'criticality': CRITICALITY_FACTOR, 'exposure': EXPOSURE_FACTOR,
         'remediation': REMEDIATION_FACTOR, 'thresholds': RISK_THRESHOLDS, 'sla': REMEDIATION_SLA_DAYS,
         'risk_levels': RiskLevel.values,
     })
